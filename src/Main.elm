@@ -13,6 +13,7 @@ module Main exposing
     , colorsToOrder
     , init
     , main
+    , pickRandomColor
     , remainingBlue
     , remainingGreen
     , remainingOrange
@@ -23,9 +24,10 @@ module Main exposing
     )
 
 import Browser
-import Html exposing (Attribute, Html, div, input, text)
+import Html exposing (Attribute, Html, div, i, text)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput)
+import List.Extra exposing (zip)
 import Random
 
 
@@ -48,7 +50,9 @@ main =
 
 type alias Model =
     { randoms : List Float
-    , choices : List EdgeColor
+    , candidate : List EdgeColor
+    , candidatePasses : Bool
+    , triesLeft : Int
     }
 
 
@@ -58,7 +62,7 @@ type alias Model =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { randoms = [], choices = [] }, newGuesses )
+    ( { randoms = [], candidate = [], candidatePasses = False, triesLeft = 500 }, newGuesses )
 
 
 
@@ -85,10 +89,33 @@ update msg model =
     case msg of
         GetNextRandoms randoms ->
             let
-                trumm =
-                    Debug.log "got randoms" (Debug.toString randoms)
+                candidate =
+                    createCandidate randoms icosahedron baseGuesses
+
+                candidatePasses =
+                    checkCandidate candidate
+
+                newTriesLeft =
+                    model.triesLeft - 1
+
+                nextCommand =
+                    if model.triesLeft > 0 && candidatePasses == False then
+                        newGuesses
+
+                    else
+                        Cmd.none
+
+                trumm2 =
+                    Debug.log "tries left" (Debug.toString newTriesLeft)
             in
-            ( { model | randoms = randoms }, Cmd.none )
+            ( { model
+                | randoms = randoms
+                , candidate = candidate
+                , candidatePasses = candidatePasses
+                , triesLeft = newTriesLeft
+              }
+            , nextCommand
+            )
 
         -- in GetNextRandoms branch, have some condition to create a guess solution, check it
         -- and conditionally ask to guess again via newGuesses if the solution was not a success.
@@ -96,13 +123,102 @@ update msg model =
             ( model, Cmd.none )
 
 
+createCandidate : List Float -> List EdgeVertex -> List (List Color) -> List EdgeColor
+createCandidate randoms vertexPairs possibleGuesses =
+    let
+        zipSoup =
+            zip (zip randoms vertexPairs) possibleGuesses
+
+        edgeColors =
+            List.map zipSoupMapFunction zipSoup
+
+        --        trumm =
+        --            Debug.log "edge colors!!!" edgeColors
+    in
+    edgeColors
+
+
+zipSoupMapFunction : ( ( Float, EdgeVertex ), List Color ) -> EdgeColor
+zipSoupMapFunction ( ( randomChance, vertexPair ), guessOptions ) =
+    edgeVertexToEdgeColor vertexPair (pickRandomColor randomChance guessOptions)
+
+
+checkCandidate : List EdgeColor -> Bool
+checkCandidate edgeColors =
+    let
+        counts =
+            List.foldl countVertex initialVertexColorCounters edgeColors
+
+        countsPass =
+            List.foldl checkCounts True counts
+    in
+    countsPass
+
+
+checkCounts : VertexColorCounter -> Bool -> Bool
+checkCounts colorCounter acc =
+    if acc == False then
+        acc
+
+    else
+        case colorCounter of
+            Counter _ ( _, 1 ) ( _, 1 ) ( _, 1 ) ( _, 1 ) ( _, 1 ) ->
+                True
+
+            Counter _ _ _ _ _ _ ->
+                False
+
+
+countVertex : EdgeColor -> List VertexColorCounter -> List VertexColorCounter
+countVertex edgeColor acc =
+    let
+        ( v1, v2, c ) =
+            unboxEdgeColor edgeColor
+
+        blah =
+            List.map
+                (\(Counter vCounting ( p, p_int ) ( g, g_int ) ( b, b_int ) ( o, o_int ) ( y, y_int )) ->
+                    if vCounting == v1 || vCounting == v2 then
+                        case c of
+                            P ->
+                                Counter vCounting ( p, p_int + 1 ) ( g, g_int ) ( b, b_int ) ( o, o_int ) ( y, y_int )
+
+                            G ->
+                                Counter vCounting ( p, p_int ) ( g, g_int + 1 ) ( b, b_int ) ( o, o_int ) ( y, y_int )
+
+                            B ->
+                                Counter vCounting ( p, p_int ) ( g, g_int ) ( b, b_int + 1 ) ( o, o_int ) ( y, y_int )
+
+                            O ->
+                                Counter vCounting ( p, p_int ) ( g, g_int ) ( b, b_int ) ( o, o_int + 1 ) ( y, y_int )
+
+                            Y ->
+                                Counter vCounting ( p, p_int ) ( g, g_int ) ( b, b_int ) ( o, o_int ) ( y, y_int + 1 )
+
+                    else
+                        Counter vCounting ( p, p_int ) ( g, g_int ) ( b, b_int ) ( o, o_int ) ( y, y_int )
+                )
+                acc
+    in
+    blah
+
+
 pickRandomColor : Float -> List Color -> Color
 pickRandomColor randomFloat colors =
     let
         trumm =
             ""
+
+        colorsLength =
+            List.length colors
+
+        index =
+            ceiling (randomFloat * toFloat colorsLength) - 1
+
+        grabbedColor =
+            List.head (List.drop index colors)
     in
-    case List.head colors of
+    case grabbedColor of
         Just c ->
             c
 
@@ -111,14 +227,56 @@ pickRandomColor randomFloat colors =
 
 
 
+-- pickRandomRemainingColor : List Float -> RemainingColors -> List Color -> List Color
+-- pickRandomRemainingColor floats rem acc =
+--     if List.length floats == 0 then
+--         acc
+--
+--     else
+--       case rem of
+--         Rem (p, p_int) (g, g_int) (b, b_int) (o, o_int) (y, y_int) ->
+--           let
+--               availableColors =
+--                 (maybeAllowColor (y, y_int)) []
+--                 |> (maybeAllowColor (o, o_int))
+--                 |> (maybeAllowColor (g, g_int))
+--                 |> (maybeAllowColor (b, b_int))
+--                 |> (maybeAllowColor (p, p_int))
+--
+--                 case floats of
+--                   (x:xs) ->
+--                     pickRandomColor
+--
+--                   _ ->
+--
+--
+--           in
+--               acc
+--         -- pickRandomRemainingColor (List.tail floats) rem acc
+
+
+maybeAllowColor : ColorCount -> List Color -> List Color
+maybeAllowColor ( color, count ) list =
+    if count > 0 then
+        color :: list
+
+    else
+        list
+
+
+
 -- VIEW
 
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ div [] [ text "" ]
-        ]
+    if model.candidatePasses then
+        div []
+            [ div [] [ text (Debug.toString model.candidate) ]
+            ]
+
+    else
+        i [] []
 
 
 
@@ -169,6 +327,27 @@ type Vertex
     | V_10
     | V_11
     | V_12
+
+
+type VertexColorCounter
+    = Counter Vertex ColorCount ColorCount ColorCount ColorCount ColorCount
+
+
+initialVertexColorCounters : List VertexColorCounter
+initialVertexColorCounters =
+    [ Counter V_01 ( P, 0 ) ( G, 0 ) ( B, 0 ) ( O, 0 ) ( Y, 0 )
+    , Counter V_02 ( P, 0 ) ( G, 0 ) ( B, 0 ) ( O, 0 ) ( Y, 0 )
+    , Counter V_03 ( P, 0 ) ( G, 0 ) ( B, 0 ) ( O, 0 ) ( Y, 0 )
+    , Counter V_04 ( P, 0 ) ( G, 0 ) ( B, 0 ) ( O, 0 ) ( Y, 0 )
+    , Counter V_05 ( P, 0 ) ( G, 0 ) ( B, 0 ) ( O, 0 ) ( Y, 0 )
+    , Counter V_06 ( P, 0 ) ( G, 0 ) ( B, 0 ) ( O, 0 ) ( Y, 0 )
+    , Counter V_07 ( P, 0 ) ( G, 0 ) ( B, 0 ) ( O, 0 ) ( Y, 0 )
+    , Counter V_08 ( P, 0 ) ( G, 0 ) ( B, 0 ) ( O, 0 ) ( Y, 0 )
+    , Counter V_09 ( P, 0 ) ( G, 0 ) ( B, 0 ) ( O, 0 ) ( Y, 0 )
+    , Counter V_10 ( P, 0 ) ( G, 0 ) ( B, 0 ) ( O, 0 ) ( Y, 0 )
+    , Counter V_11 ( P, 0 ) ( G, 0 ) ( B, 0 ) ( O, 0 ) ( Y, 0 )
+    , Counter V_12 ( P, 0 ) ( G, 0 ) ( B, 0 ) ( O, 0 ) ( Y, 0 )
+    ]
 
 
 type Edge
@@ -310,6 +489,100 @@ icosahedron =
     , EV_29 V_10 V_12
     , EV_30 V_11 V_12
     ]
+
+
+unboxEdgeColor : EdgeColor -> ( Vertex, Vertex, Color )
+unboxEdgeColor edgeColor =
+    case edgeColor of
+        EC_01 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_02 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_03 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_04 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_05 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_06 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_07 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_08 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_09 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_10 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_11 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_12 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_13 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_14 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_15 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_16 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_17 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_18 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_19 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_20 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_21 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_22 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_23 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_24 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_25 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_26 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_27 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_28 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_29 v1 v2 c ->
+            ( v1, v2, c )
+
+        EC_30 v1 v2 c ->
+            ( v1, v2, c )
 
 
 edgeVertexToEdgeColor : EdgeVertex -> Color -> EdgeColor
@@ -618,8 +891,17 @@ remainingYellow =
     [ Y, Y, Y, Y, Y ]
 
 
-type alias RemainingColors =
-    List ( Color, Int )
+type alias ColorCount =
+    ( Color, Int )
+
+
+type RemainingColors
+    = Rem ColorCount ColorCount ColorCount ColorCount ColorCount
+
+
+initalRemainingColors : RemainingColors
+initalRemainingColors =
+    Rem ( P, 5 ) ( G, 5 ) ( B, 5 ) ( O, 5 ) ( Y, 5 )
 
 
 colorsToOrder =

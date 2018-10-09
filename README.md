@@ -12,7 +12,7 @@ Each set to its right are its neighbor vertices
 P G B O Y are colors Pink, Green, Blue, Orange, Yellow
 Each pairing describes an edge, or a connection between vertices
 
-This manual guesswork fails because is made vertex eleven contain two Green points.
+This manual guesswork fails because it makes vertex eleven contain two Green points.
 
 ```
          P  G  B  O  Y
@@ -57,3 +57,165 @@ This manual guesswork fails because is made vertex eleven contain two Green poin
 
 This repo tries to "brute force" solve the puzzle.
 It uses Elm as the implementation language.
+
+## Example manual guesses
+
+### After Blue
+B 
+taken
+V_01
+V_02
+V_03
+V_04
+V_05
+V_06
+V_07
+V_08
+V_09
+V_10
+V_11
+V_12
+need
+
+
+```
+    [ EV_01 V_01 V_02 B
+    , EV_02 V_01 V_03
+    , EV_03 V_01 V_04
+    , EV_04 V_01 V_05
+    , EV_05 V_01 V_06
+    , EV_06 V_02 V_03
+    , EV_07 V_02 V_06
+    , EV_08 V_02 V_07
+    , EV_09 V_02 V_11
+    , EV_10 V_03 V_04 B
+    , EV_11 V_03 V_07
+    , EV_12 V_03 V_08
+    , EV_13 V_04 V_05
+    , EV_14 V_04 V_08
+    , EV_15 V_04 V_09
+    , EV_16 V_05 V_06 B
+    , EV_17 V_05 V_09
+    , EV_18 V_05 V_10
+    , EV_19 V_06 V_10
+    , EV_20 V_06 V_11
+    , EV_21 V_07 V_08 B
+    , EV_22 V_07 V_11
+    , EV_23 V_07 V_12
+    , EV_24 V_08 V_09
+    , EV_25 V_08 V_12
+    , EV_26 V_09 V_10 B
+    , EV_27 V_09 V_12
+    , EV_28 V_10 V_11
+    , EV_29 V_10 V_12
+    , EV_30 V_11 V_12 B
+    ]
+```
+
+### After Blue, Yellow
+Y 
+taken
+V_01
+V_03
+V_02
+V_06
+V_04
+V_05
+V_10
+V_12
+V_08
+V_09
+V_07
+V_11
+need
+
+
+```
+    [ EV_01 V_01 V_02 B
+    , EV_02 V_01 V_03 Y
+    , EV_03 V_01 V_04
+    , EV_04 V_01 V_05
+    , EV_05 V_01 V_06
+    , EV_06 V_02 V_03
+    , EV_07 V_02 V_06 Y
+    , EV_08 V_02 V_07
+    , EV_09 V_02 V_11
+    , EV_10 V_03 V_04 B
+    , EV_11 V_03 V_07
+    , EV_12 V_03 V_08
+    , EV_13 V_04 V_05 Y
+    , EV_14 V_04 V_08
+    , EV_15 V_04 V_09
+    , EV_16 V_05 V_06 B
+    , EV_17 V_05 V_09
+    , EV_18 V_05 V_10
+    , EV_19 V_06 V_10
+    , EV_20 V_06 V_11
+    , EV_21 V_07 V_08 B
+    , EV_22 V_07 V_11 Y
+    , EV_23 V_07 V_12
+    , EV_24 V_08 V_09 Y
+    , EV_25 V_08 V_12
+    , EV_26 V_09 V_10 B
+    , EV_27 V_09 V_12
+    , EV_28 V_10 V_11
+    , EV_29 V_10 V_12 Y
+    , EV_30 V_11 V_12 B
+    ]
+```
+
+### After Blue, Yellow
+O 
+taken
+V_01
+V_02
+V_03
+V_04
+V_05
+V_09
+need
+
+V_10
+V_11
+
+V_06
+V_07
+V_08
+V_12
+cant
+06 10
+
+
+```
+    [ EV_01 V_01 V_02 B
+    , EV_02 V_01 V_03 Y
+    , EV_03 V_01 V_04 O
+    , EV_04 V_01 V_05
+    , EV_05 V_01 V_06
+    , EV_06 V_02 V_03 O
+    , EV_07 V_02 V_06 Y
+    , EV_08 V_02 V_07
+    , EV_09 V_02 V_11
+    , EV_10 V_03 V_04 B
+    , EV_11 V_03 V_07
+    , EV_12 V_03 V_08
+    , EV_13 V_04 V_05 Y
+    , EV_14 V_04 V_08
+    , EV_15 V_04 V_09
+    , EV_16 V_05 V_06 B
+    , EV_17 V_05 V_09 O
+    , EV_18 V_05 V_10
+    , EV_19 V_06 V_10
+    , EV_20 V_06 V_11
+    , EV_21 V_07 V_08 B
+    , EV_22 V_07 V_11 Y
+    , EV_23 V_07 V_12
+    , EV_24 V_08 V_09 Y
+    , EV_25 V_08 V_12
+    , EV_26 V_09 V_10 B
+    , EV_27 V_09 V_12
+    , EV_28 V_10 V_11
+    , EV_29 V_10 V_12 Y
+    , EV_30 V_11 V_12 B
+    ]
+```
