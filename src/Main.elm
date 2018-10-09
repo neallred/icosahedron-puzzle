@@ -27,7 +27,7 @@ import Browser
 import Html exposing (Attribute, Html, div, i, text)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput)
-import List.Extra exposing (zip)
+import List.Extra exposing (zip, zip3)
 import Random
 
 
@@ -60,9 +60,13 @@ type alias Model =
 -- order matters a LOT
 
 
+tries =
+    50000
+
+
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { randoms = [], candidate = [], candidatePasses = False, triesLeft = 500 }, newGuesses )
+    ( { randoms = [], candidate = [], candidatePasses = False, triesLeft = tries }, newGuesses )
 
 
 
@@ -105,8 +109,8 @@ update msg model =
                     else
                         Cmd.none
 
-                trumm2 =
-                    Debug.log "tries left" (Debug.toString newTriesLeft)
+                --                trumm2 =
+                --                    Debug.log "tries left" (Debug.toString newTriesLeft)
             in
             ( { model
                 | randoms = randoms
@@ -126,21 +130,40 @@ update msg model =
 createCandidate : List Float -> List EdgeVertex -> List (List Color) -> List EdgeColor
 createCandidate randoms vertexPairs possibleGuesses =
     let
-        zipSoup =
-            zip (zip randoms vertexPairs) possibleGuesses
+        randomColors =
+            pickRandomRemainingColor randoms initialRemainingColors []
 
+        guesses =
+            baseColorSequence ++ randomColors
+
+        zipSoup =
+            zip vertexPairs guesses
+
+        -- zip3 randoms vertexPairs possibleGuesses
         edgeColors =
             List.map zipSoupMapFunction zipSoup
 
+        --         trumm =
+        --             Debug.log "zip Soup!" zipSoup
         --        trumm =
-        --            Debug.log "edge colors!!!" edgeColors
+        --            Debug.log "mah candidate!" edgeColors
+        -- List.map zipSoupMapFunction zipSoup
+        --        trumm =
+        --            --Debug.log "edge colors!!!" edgeColors
+        --            Debug.log "allcolors" guesses
     in
     edgeColors
 
 
-zipSoupMapFunction : ( ( Float, EdgeVertex ), List Color ) -> EdgeColor
-zipSoupMapFunction ( ( randomChance, vertexPair ), guessOptions ) =
-    edgeVertexToEdgeColor vertexPair (pickRandomColor randomChance guessOptions)
+zipSoupMapFunction : ( EdgeVertex, Color ) -> EdgeColor
+zipSoupMapFunction ( edgeVertex, color ) =
+    edgeVertexToEdgeColor edgeVertex color
+
+
+
+-- zipSoupMapFunction : ( Float, EdgeVertex, List Color ) -> EdgeColor
+-- zipSoupMapFunction ( randomChance, vertexPair, guessOptions ) =
+--     edgeVertexToEdgeColor vertexPair (pickRandomColor randomChance guessOptions)
 
 
 checkCandidate : List EdgeColor -> Bool
@@ -206,9 +229,6 @@ countVertex edgeColor acc =
 pickRandomColor : Float -> List Color -> Color
 pickRandomColor randomFloat colors =
     let
-        trumm =
-            ""
-
         colorsLength =
             List.length colors
 
@@ -227,32 +247,58 @@ pickRandomColor randomFloat colors =
 
 
 
--- pickRandomRemainingColor : List Float -> RemainingColors -> List Color -> List Color
--- pickRandomRemainingColor floats rem acc =
---     if List.length floats == 0 then
---         acc
---
---     else
---       case rem of
---         Rem (p, p_int) (g, g_int) (b, b_int) (o, o_int) (y, y_int) ->
---           let
---               availableColors =
---                 (maybeAllowColor (y, y_int)) []
---                 |> (maybeAllowColor (o, o_int))
---                 |> (maybeAllowColor (g, g_int))
---                 |> (maybeAllowColor (b, b_int))
---                 |> (maybeAllowColor (p, p_int))
---
---                 case floats of
---                   (x:xs) ->
---                     pickRandomColor
---
---                   _ ->
---
---
---           in
---               acc
---         -- pickRandomRemainingColor (List.tail floats) rem acc
+-- Takes in 25 floats and remaining colors, and assigns them all
+-- doesn't try to interact with possibleGuesses (yet)
+
+
+pickRandomRemainingColor : List Float -> RemainingColors -> List Color -> List Color
+pickRandomRemainingColor floats (Rem ( p, p_int ) ( g, g_int ) ( b, b_int ) ( o, o_int ) ( y, y_int )) acc =
+    if List.length floats == 0 then
+        acc
+
+    else if p_int == 0 && g_int == 0 && b_int == 0 && o_int == 0 && y_int == 0 then
+        acc
+
+    else
+        let
+            availableColors =
+                maybeAllowColor ( y, y_int ) []
+                    |> maybeAllowColor ( o, o_int )
+                    |> maybeAllowColor ( b, b_int )
+                    |> maybeAllowColor ( g, g_int )
+                    |> maybeAllowColor ( p, p_int )
+
+            chosenColor =
+                case floats of
+                    x :: xs ->
+                        pickRandomColor x availableColors
+
+                    _ ->
+                        P
+
+            newRemainingColors =
+                case chosenColor of
+                    P ->
+                        Rem ( p, p_int - 1 ) ( g, g_int ) ( b, b_int ) ( o, o_int ) ( y, y_int )
+
+                    G ->
+                        Rem ( p, p_int ) ( g, g_int - 1 ) ( b, b_int ) ( o, o_int ) ( y, y_int )
+
+                    B ->
+                        Rem ( p, p_int ) ( g, g_int ) ( b, b_int - 1 ) ( o, o_int ) ( y, y_int )
+
+                    O ->
+                        Rem ( p, p_int ) ( g, g_int ) ( b, b_int ) ( o, o_int - 1 ) ( y, y_int )
+
+                    Y ->
+                        Rem ( p, p_int ) ( g, g_int ) ( b, b_int ) ( o, o_int ) ( y, y_int - 1 )
+        in
+        case List.tail floats of
+            Just remainingFloats ->
+                pickRandomRemainingColor remainingFloats newRemainingColors (chosenColor :: acc)
+
+            _ ->
+                acc
 
 
 maybeAllowColor : ColorCount -> List Color -> List Color
@@ -274,6 +320,9 @@ view model =
         div []
             [ div [] [ text (Debug.toString model.candidate) ]
             ]
+
+    else if model.triesLeft == -1 then
+        div [] [ text ("unable to find solution after " ++ String.fromInt tries ++ " guesses.") ]
 
     else
         i [] []
@@ -899,8 +948,8 @@ type RemainingColors
     = Rem ColorCount ColorCount ColorCount ColorCount ColorCount
 
 
-initalRemainingColors : RemainingColors
-initalRemainingColors =
+initialRemainingColors : RemainingColors
+initialRemainingColors =
     Rem ( P, 5 ) ( G, 5 ) ( B, 5 ) ( O, 5 ) ( Y, 5 )
 
 
